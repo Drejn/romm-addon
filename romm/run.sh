@@ -28,8 +28,7 @@ export ROMM_AUTH_SECRET_KEY=$(cat "$SECRET_KEY_FILE")
 
 # ── Configurazione database ───────────────────────────────────────────────────
 if [ "$DB_TYPE" = "mariadb" ]; then
-    log "Utilizzo MariaDB come database..."
-
+    log "Utilizzo MariaDB..."
     MARIADB_HOST=$(jq -r '.mariadb_host // ""' "$OPTIONS")
     MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
     MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
@@ -47,7 +46,7 @@ if [ "$DB_TYPE" = "mariadb" ]; then
     export DB_PASSWD="$MARIADB_PASS"
     export DB_NAME="$MARIADB_DB"
 else
-    log "Utilizzo SQLite come database..."
+    log "Utilizzo SQLite..."
     unset DB_HOST
 fi
 
@@ -63,17 +62,34 @@ mkdir -p /data/romm/assets
 mkdir -p /data/romm/config
 
 if [ ! -d "$ROM_LIBRARY" ]; then
-    log "La cartella ROM '$ROM_LIBRARY' non esiste, verrà creata."
+    log "Cartella ROM '$ROM_LIBRARY' non trovata, verrà creata."
     mkdir -p "$ROM_LIBRARY"
 fi
 
-# RomM si aspetta la libreria in /romm/library
-ln -sfn "$ROM_LIBRARY" /romm/library 2>/dev/null || true
+# RomM monta la libreria in /romm/library
+mkdir -p /romm/library
+mount --bind "$ROM_LIBRARY" /romm/library 2>/dev/null || ln -sfn "$ROM_LIBRARY" /romm/library
+
+# Collega le cartelle dati persistenti
+ln -sfn /data/romm/resources /romm/resources 2>/dev/null || true
+ln -sfn /data/romm/assets    /romm/assets    2>/dev/null || true
+ln -sfn /data/romm/config    /romm/config    2>/dev/null || true
 
 log "Libreria ROM: $ROM_LIBRARY"
 log "Database: $DB_TYPE"
 log "Avvio RomM sulla porta 8080..."
 
-# ── Avvio ─────────────────────────────────────────────────────────────────────
-exec /app/entrypoint.sh
-
+# ── Avvio con l'entrypoint originale di RomM ─────────────────────────────────
+# Cerca il vero entrypoint nell'immagine
+if [ -f "/init" ]; then
+    exec /init
+elif [ -f "/start.sh" ]; then
+    exec /start.sh
+elif [ -f "/docker-entrypoint.sh" ]; then
+    exec /docker-entrypoint.sh
+else
+    # Fallback: cerca e stampa cosa c'è nella root per debug
+    log "ERRORE: entrypoint non trovato. Contenuto di /:"
+    ls -la /
+    exit 1
+fi
