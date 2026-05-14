@@ -6,7 +6,6 @@ log() { echo "[RomM Addon] $*"; }
 OPTIONS="/data/options.json"
 if [ ! -f "$OPTIONS" ]; then log "ERRORE: options non trovato"; exit 1; fi
 
-ROM_LIBRARY=$(jq -r '.rom_library_path // "/romm/library"' "$OPTIONS")
 MARIADB_HOST=$(jq -r '.mariadb_host // "core-mariadb"' "$OPTIONS")
 MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
 MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
@@ -36,17 +35,24 @@ export DB_NAME="$MARIADB_DB"
 [ -n "$SS_USER" ]     && export SCREENSCRAPER_USER="$SS_USER"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
-# ROMM_BASE_PATH=/romm è obbligatorio — nginx ha hardcoded alias "/romm/library/"
-# Il volume HAOS monta /share/romm/library → /romm/library automaticamente
 export ROMM_BASE_PATH=/romm
 
 mkdir -p /romm/resources /romm/assets /romm/config
 [ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
 chmod -R 755 /romm 2>/dev/null || true
 
-log "ROMM_BASE_PATH: /romm (hardcoded — richiesto da nginx)"
-log "Libreria ROM:   /romm/library → /share/romm/library (volume HAOS)"
-log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
+# ── DEBUG: trova dove viene generato X-Archive-Files ─────────────────────────
+log "=== DEBUG X-Archive-Files ==="
+log "Cerco generazione header X-Archive-Files e decode:"
+grep -rn "X-Archive-Files\|X-Archive\|decode\|base64" /backend/ 2>/dev/null \
+    | grep -v ".pyc" | grep -v "Binary" | head -40
+log "File rom endpoint:"
+find /backend -name "*.py" | xargs grep -l "content\|download\|stream" 2>/dev/null \
+    | grep -i "rom\|download" | head -5
+log "=== FINE DEBUG ==="
+
+log "ROMM_BASE_PATH: /romm"
+log "Database: MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
 
 if [ -f "/init" ]; then exec /init
