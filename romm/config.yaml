@@ -25,6 +25,7 @@ options:
   igdb_client_secret: ""
   screenscraper_user: ""
   screenscraper_password: ""
+  internal_secret: "secret"
 schema:
   mariadb_host: str
   mariadb_port: int
@@ -36,3 +37,4 @@ schema:
   igdb_client_secret: str
   screenscraper_user: str
   screenscraper_password: str
+  internal_secret: str
