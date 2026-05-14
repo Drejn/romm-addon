@@ -4,13 +4,9 @@ set -e
 log() { echo "[RomM Addon] $*"; }
 
 OPTIONS="/data/options.json"
+if [ ! -f "$OPTIONS" ]; then log "ERRORE: options non trovato"; exit 1; fi
 
-if [ ! -f "$OPTIONS" ]; then
-    log "ERRORE: file opzioni non trovato in $OPTIONS"
-    exit 1
-fi
-
-# ── Leggi le opzioni da HA ────────────────────────────────────────────────────
+# ── Leggi le opzioni ──────────────────────────────────────────────────────────
 ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/roms/roms"' "$OPTIONS")
 MARIADB_HOST=$(jq -r '.mariadb_host // "core-mariadb"' "$OPTIONS")
 MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
@@ -22,16 +18,13 @@ IGDB_SECRET=$(jq -r '.igdb_client_secret // ""' "$OPTIONS")
 SS_USER=$(jq -r '.screenscraper_user // ""' "$OPTIONS")
 SS_PASS=$(jq -r '.screenscraper_password // ""' "$OPTIONS")
 
-# ── Validazione ───────────────────────────────────────────────────────────────
 if [ -z "$MARIADB_USER" ] || [ -z "$MARIADB_PASS" ]; then
-    log "ERRORE: devi compilare mariadb_user e mariadb_password!"
-    exit 1
+    log "ERRORE: mariadb_user e mariadb_password obbligatori!"; exit 1
 fi
 
 # ── Secret key ────────────────────────────────────────────────────────────────
 SECRET_KEY_FILE="/data/romm_secret_key"
 if [ ! -f "$SECRET_KEY_FILE" ]; then
-    log "Generazione ROMM_AUTH_SECRET_KEY..."
     openssl rand -hex 32 > "$SECRET_KEY_FILE"
 fi
 export ROMM_AUTH_SECRET_KEY=$(cat "$SECRET_KEY_FILE")
@@ -49,55 +42,35 @@ export DB_NAME="$MARIADB_DB"
 [ -n "$SS_USER" ]     && export SCREENSCRAPER_USER="$SS_USER"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
-# ── DEBUG: leggi come RomM costruisce i path ──────────────────────────────────
-log "=== DEBUG CODICE ==="
-log "base_handler.py:"
-cat /backend/handler/filesystem/base_handler.py 2>/dev/null | head -60 || log "non trovato"
-log "roms_handler.py (sezione path):"
-grep -n "base_path\|library\|file_path\|X-Archive\|ROMM_BASE" /backend/handler/filesystem/roms_handler.py 2>/dev/null | head -30 || log "non trovato"
-log "nginx conf completa (location blocks):"
-grep -A 10 "location" /etc/nginx/nginx.conf 2>/dev/null | head -60 || log "non trovato"
+# ── DEBUG: trova LIBRARY_BASE_PATH ────────────────────────────────────────────
+log "=== DEBUG LIBRARY_BASE_PATH ==="
+log "Cerco LIBRARY_BASE_PATH nel codice:"
+grep -rn "LIBRARY_BASE_PATH\|ROMM_BASE_PATH\|library_base\|base_path" \
+    /backend/config/ /backend/utils/ /backend/handler/filesystem/base_handler.py \
+    2>/dev/null | grep -v ".pyc" | head -30
+log "Variabili d'ambiente RomM riconosciute:"
+grep -rn "os.environ\|os.getenv\|environ.get" /backend/config/ 2>/dev/null | head -20
 log "=== FINE DEBUG ==="
 
 # ── Percorsi ──────────────────────────────────────────────────────────────────
-# Usa /romm come base — è la cartella nativa di RomM
-# e monta la libreria ROM direttamente in /romm/library
-export ROMM_BASE_PATH=/romm
-
-mkdir -p /romm/resources
-mkdir -p /romm/assets
-mkdir -p /romm/config
-
-if [ ! -f "/romm/config/config.yml" ]; then
-    touch /romm/config/config.yml
+# /romm/library è montato da HAOS come volume — copiamo le ROM dentro
+log "Sincronizzazione ROM in /romm/library..."
+if [ -d "$ROM_LIBRARY" ]; then
+    # Copia solo i file mancanti (non sovrascrive, non cancella)
+    cp -rn "$ROM_LIBRARY"/. /romm/library/ 2>/dev/null || true
 fi
 
-if [ ! -d "$ROM_LIBRARY" ]; then
-    mkdir -p "$ROM_LIBRARY"
-fi
+mkdir -p /romm/resources /romm/assets /romm/config
+[ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
 
-# Svuota /romm/library e rimpiazza con bind mount o copia symlink
-rm -rf /romm/library
-ln -sfn "$ROM_LIBRARY" /romm/library
+chmod -R 755 /romm/library 2>/dev/null || true
 
-# Fix permessi
-chmod -R 755 "$ROM_LIBRARY" 2>/dev/null || true
-chmod -R 755 /romm 2>/dev/null || true
-
-log "ROMM_BASE_PATH: /romm"
-log "Libreria ROM:   $ROM_LIBRARY -> /romm/library"
-log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
+log "Libreria ROM: $ROM_LIBRARY → /romm/library"
+log "Database:     MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
 
-# ── Avvio ─────────────────────────────────────────────────────────────────────
-if [ -f "/init" ]; then
-    exec /init
-elif [ -f "/start.sh" ]; then
-    exec /start.sh
-elif [ -f "/docker-entrypoint.sh" ]; then
-    exec /docker-entrypoint.sh
-else
-    log "ERRORE: entrypoint non trovato"
-    ls -la /
-    exit 1
+if [ -f "/init" ]; then exec /init
+elif [ -f "/start.sh" ]; then exec /start.sh
+elif [ -f "/docker-entrypoint.sh" ]; then exec /docker-entrypoint.sh
+else log "ERRORE: entrypoint non trovato"; ls -la /; exit 1
 fi
