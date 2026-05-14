@@ -47,6 +47,7 @@ if [ "$DB_TYPE" = "mariadb" ]; then
     export DB_NAME="$MARIADB_DB"
 else
     log "Utilizzo SQLite..."
+    export ROMM_DB_DRIVER=sqlite
     unset DB_HOST
 fi
 
@@ -56,31 +57,37 @@ fi
 [ -n "$SS_USER" ]     && export SCREENSCRAPER_USER="$SS_USER"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
-# ── Percorsi ──────────────────────────────────────────────────────────────────
+# ── Percorsi e cartelle dati persistenti ─────────────────────────────────────
 mkdir -p /data/romm/resources
 mkdir -p /data/romm/assets
 mkdir -p /data/romm/config
 
+# Crea il config.yml vuoto se non esiste (evita il CRITICAL al primo avvio)
+if [ ! -f "/data/romm/config/config.yml" ]; then
+    log "Creazione config.yml vuoto..."
+    cat > /data/romm/config/config.yml << 'CONFIGEOF'
+# RomM configuration file
+# Documentazione: https://docs.romm.app/latest/Getting-Started/Configuration-File/
+CONFIGEOF
+fi
+
+# Libreria ROM
 if [ ! -d "$ROM_LIBRARY" ]; then
     log "Cartella ROM '$ROM_LIBRARY' non trovata, verrà creata."
     mkdir -p "$ROM_LIBRARY"
 fi
 
-# RomM monta la libreria in /romm/library
-mkdir -p /romm/library
-mount --bind "$ROM_LIBRARY" /romm/library 2>/dev/null || ln -sfn "$ROM_LIBRARY" /romm/library
-
-# Collega le cartelle dati persistenti
+# Collega le cartelle al percorso atteso da RomM
 ln -sfn /data/romm/resources /romm/resources 2>/dev/null || true
 ln -sfn /data/romm/assets    /romm/assets    2>/dev/null || true
 ln -sfn /data/romm/config    /romm/config    2>/dev/null || true
+ln -sfn "$ROM_LIBRARY"       /romm/library   2>/dev/null || true
 
 log "Libreria ROM: $ROM_LIBRARY"
 log "Database: $DB_TYPE"
 log "Avvio RomM sulla porta 8080..."
 
 # ── Avvio con l'entrypoint originale di RomM ─────────────────────────────────
-# Cerca il vero entrypoint nell'immagine
 if [ -f "/init" ]; then
     exec /init
 elif [ -f "/start.sh" ]; then
@@ -88,7 +95,6 @@ elif [ -f "/start.sh" ]; then
 elif [ -f "/docker-entrypoint.sh" ]; then
     exec /docker-entrypoint.sh
 else
-    # Fallback: cerca e stampa cosa c'è nella root per debug
     log "ERRORE: entrypoint non trovato. Contenuto di /:"
     ls -la /
     exit 1
