@@ -57,7 +57,7 @@ export ROMM_BASE_PATH=/share/romm
 mkdir -p /share/romm/resources
 mkdir -p /share/romm/assets
 mkdir -p /share/romm/config
-
+mkdir -p /share/romm/library
 
 $ROMLIBRARY = /share/romm/library
 # Crea il config.yml se non esiste
