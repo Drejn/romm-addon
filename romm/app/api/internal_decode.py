@@ -1,4 +1,3 @@
-# app/api/internal_decode.py
 from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import FileResponse
 from pathlib import Path
@@ -9,14 +8,14 @@ import logging
 logger = logging.getLogger("romm.internal_decode")
 router = APIRouter()
 
-
-INTERNAL_SECRET = os.environ.get("INTERNAL_SECRET", "change-me-default-secret")
+INTERNAL_SECRET = os.environ.get("INTERNAL_SECRET", "secret")
 ROM_LIBRARY = os.environ.get("ROM_LIBRARY_PATH", "/share/romm/library")
 
 ALLOWED_ROOTS = [
     Path(ROM_LIBRARY).resolve(),
     Path("/var/lib/romm/library").resolve()
 ]
+
 @router.get("/decode_internal")
 async def decode_internal(request: Request, file_path: str = Query(...)):
     secret = request.headers.get("X-Internal-Secret")
