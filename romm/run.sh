@@ -24,7 +24,7 @@ SS_PASS=$(jq -r '.screenscraper_password // ""' "$OPTIONS")
 
 # ── Validazione ───────────────────────────────────────────────────────────────
 if [ -z "$MARIADB_USER" ] || [ -z "$MARIADB_PASS" ]; then
-    log "ERRORE: devi compilare mariadb_user e mariadb_password nella configurazione addon!"
+    log "ERRORE: devi compilare mariadb_user e mariadb_password!"
     exit 1
 fi
 
@@ -57,24 +57,34 @@ mkdir -p /share/romm/assets
 mkdir -p /share/romm/config
 
 if [ ! -f "/share/romm/config/config.yml" ]; then
-    log "Creazione config.yml..."
     touch /share/romm/config/config.yml
 fi
 
 if [ ! -d "$ROM_LIBRARY" ]; then
-    log "Cartella ROM '$ROM_LIBRARY' non trovata, verrà creata."
     mkdir -p "$ROM_LIBRARY"
 fi
 
-# ── Fix permessi ──────────────────────────────────────────────────────────────
-# nginx e romm girano con uid diversi all'interno del container
-# Usiamo chmod 755 (leggibile da tutti) invece di chown a un utente specifico
-log "Correzione permessi libreria ROM..."
-find "$ROM_LIBRARY" -type d -exec chmod 755 {} \;
-find "$ROM_LIBRARY" -type f -exec chmod 644 {} \;
-find /share/romm -type d -exec chmod 755 {} \;
-find /share/romm -type f -exec chmod 644 {} \;
-log "Permessi applicati: cartelle=755 file=644"
+chmod -R 755 "$ROM_LIBRARY" 2>/dev/null || true
+chmod -R 755 /share/romm 2>/dev/null || true
+
+# ── DEBUG: struttura interna RomM ─────────────────────────────────────────────
+log "=== DEBUG STRUTTURA ==="
+log "Contenuto /romm:"
+ls -la /romm/ 2>/dev/null || log "/romm non esiste"
+
+log "Contenuto /src (codice RomM):"
+ls /src/ 2>/dev/null || log "/src non esiste"
+
+log "Config nginx:"
+cat /etc/nginx/nginx.conf 2>/dev/null | grep -A5 -i "location\|alias\|root\|zip\|decode" | head -40 || log "nginx.conf non trovato"
+
+log "Variabili d'ambiente attive:"
+env | grep -E "ROMM|DB_|IGDB" | grep -v PASSWD
+
+log "Ricerca rom_handler o file_handler:"
+find / -name "*.py" 2>/dev/null | xargs grep -l "X-Archive-Files\|file_path\|base_path" 2>/dev/null | head -5
+
+log "=== FINE DEBUG ==="
 
 log "ROMM_BASE_PATH: /share"
 log "Libreria ROM:   $ROM_LIBRARY"
@@ -89,7 +99,7 @@ elif [ -f "/start.sh" ]; then
 elif [ -f "/docker-entrypoint.sh" ]; then
     exec /docker-entrypoint.sh
 else
-    log "ERRORE: entrypoint non trovato. Contenuto di /:"
+    log "ERRORE: entrypoint non trovato"
     ls -la /
     exit 1
 fi
