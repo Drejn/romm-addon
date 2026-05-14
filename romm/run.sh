@@ -87,6 +87,7 @@ fi
 
 
 # Read options.json if present
+INTERNAL_SECRET_DEFAULT="secret"
 ROM_LIBRARY_DEFAULT="/share/romm/library"
 
 if [ -f /data/options.json ]; then
@@ -97,8 +98,17 @@ fi
 INTERNAL_SECRET=${INTERNAL_SECRET:-$INTERNAL_SECRET_DEFAULT}
 ROM_LIBRARY_PATH=${ROM_LIBRARY_PATH:-$ROM_LIBRARY_DEFAULT}
 
+
+export INTERNAL_SECRET
 export ROM_LIBRARY_PATH
 
+# Render nginx config from template by replacing placeholder
+if [ -f /etc/nginx/nginx.conf ]; then
+  # backup existing
+  cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak || true
+fi
+
+sed "s|__INTERNAL_SECRET__|${INTERNAL_SECRET}|g" /nginx.conf.template > /etc/nginx/nginx.conf
 
 # Ensure uvicorn binds to localhost:8081 (only accessible inside container)
 uvicorn app.main:app --host 127.0.0.1 --port 8081 &
