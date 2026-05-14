@@ -6,7 +6,7 @@ log() { echo "[RomM Addon] $*"; }
 OPTIONS="/data/options.json"
 if [ ! -f "$OPTIONS" ]; then log "ERRORE: options non trovato"; exit 1; fi
 
-ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/romm/library"' "$OPTIONS")
+ROM_LIBRARY=$(jq -r '.rom_library_path // "/romm/library"' "$OPTIONS")
 MARIADB_HOST=$(jq -r '.mariadb_host // "core-mariadb"' "$OPTIONS")
 MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
 MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
@@ -36,34 +36,17 @@ export DB_NAME="$MARIADB_DB"
 [ -n "$SS_USER" ]     && export SCREENSCRAPER_USER="$SS_USER"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
-ROMM_BASE=$(dirname "$ROM_LIBRARY")
-export ROMM_BASE_PATH="$ROMM_BASE"
+# ROMM_BASE_PATH=/romm è obbligatorio — nginx ha hardcoded alias "/romm/library/"
+# Il volume HAOS monta /share/romm/library → /romm/library automaticamente
+export ROMM_BASE_PATH=/romm
 
-mkdir -p "$ROMM_BASE_PATH/library"
-mkdir -p "$ROMM_BASE_PATH/resources"
-mkdir -p "$ROMM_BASE_PATH/assets"
-mkdir -p "$ROMM_BASE_PATH/config"
-[ ! -f "$ROMM_BASE_PATH/config/config.yml" ] && touch "$ROMM_BASE_PATH/config/config.yml"
-chmod -R 755 "$ROMM_BASE_PATH" 2>/dev/null || true
+mkdir -p /romm/resources /romm/assets /romm/config
+[ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
+chmod -R 755 /romm 2>/dev/null || true
 
-# ── DEBUG: trova tutti i file nginx config ────────────────────────────────────
-log "=== DEBUG NGINX COMPLETO ==="
-log "Tutti i file nginx:"
-find /etc/nginx -type f | sort
-log "Contenuto /etc/nginx/conf.d/ (se esiste):"
-for f in /etc/nginx/conf.d/*.conf; do
-    log "--- $f ---"
-    cat "$f" 2>/dev/null || log "non leggibile"
-done
-log "Contenuto /etc/nginx/sites-enabled/ (se esiste):"
-for f in /etc/nginx/sites-enabled/*; do
-    log "--- $f ---"
-    cat "$f" 2>/dev/null || log "non leggibile"
-done
-log "=== FINE DEBUG ==="
-
-log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
-log "Libreria ROM:   $ROM_LIBRARY"
+log "ROMM_BASE_PATH: /romm (hardcoded — richiesto da nginx)"
+log "Libreria ROM:   /romm/library → /share/romm/library (volume HAOS)"
+log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
 
 if [ -f "/init" ]; then exec /init
