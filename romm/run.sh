@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+set -euo pipefail
 log() { echo "[RomM Addon] $*"; }
 
 OPTIONS="/data/options.json"
@@ -83,3 +84,25 @@ else
     ls -la /
     exit 1
 fi
+
+
+# Read options.json if present
+ROM_LIBRARY_DEFAULT="/share/romm/library"
+
+if [ -f /data/options.json ]; then
+  INTERNAL_SECRET=$(jq -r '.internal_secret // empty' /data/options.json)
+  ROM_LIBRARY_PATH=$(jq -r '.rom_library_path // empty' /data/options.json)
+fi
+
+INTERNAL_SECRET=${INTERNAL_SECRET:-$INTERNAL_SECRET_DEFAULT}
+ROM_LIBRARY_PATH=${ROM_LIBRARY_PATH:-$ROM_LIBRARY_DEFAULT}
+
+export ROM_LIBRARY_PATH
+
+
+# Ensure uvicorn binds to localhost:8081 (only accessible inside container)
+uvicorn app.main:app --host 127.0.0.1 --port 8081 &
+
+# Start nginx in foreground
+nginx -g "daemon off;"
+
