@@ -37,23 +37,15 @@ export DB_NAME="$MARIADB_DB"
 
 export ROMM_BASE_PATH=/romm
 
-mkdir -p /romm/resources /romm/assets /romm/config
-[ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
-chmod -R 755 /romm 2>/dev/null || true
+# ── Mount bind: collega /share/romm/* a /romm/* ───────────────────────────────
+for DIR in library resources assets config; do
+    mkdir -p "/share/romm/$DIR" "/romm/$DIR"
+    mount --bind "/share/romm/$DIR" "/romm/$DIR"
+    log "Montato: /share/romm/$DIR → /romm/$DIR"
+done
 
-# ── DEBUG: montaggi e path ────────────────────────────────────────────────────
-log "=== DEBUG MONTAGGI ==="
-log "Tutti i mount points del container:"
-cat /proc/mounts | grep -v "proc\|sys\|dev\|cgroup\|tmpfs" | head -20
-log "Contenuto /romm:"
-ls -la /romm/
-log "Contenuto /romm/library:"
-ls -la /romm/library/ | head -10
-log "Contenuto /share:"
-ls -la /share/ | head -10
-log "full_path nel modello ROM:"
-sed -n '295,315p' /backend/models/rom.py
-log "=== FINE DEBUG ==="
+[ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
+chmod -R 755 /share/romm 2>/dev/null || true
 
 log "ROMM_BASE_PATH: /romm"
 log "Database: MariaDB @ $MARIADB_HOST/$MARIADB_DB"
