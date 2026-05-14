@@ -41,13 +41,18 @@ mkdir -p /romm/resources /romm/assets /romm/config
 [ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
 chmod -R 755 /romm 2>/dev/null || true
 
-# ── DEBUG: full_path nel DB e struttura fisica ────────────────────────────────
-log "=== DEBUG full_path ==="
-log "Struttura fisica /romm/library (prime 3 ROM):"
-find /romm/library -type f | head -5
-log "Cerco full_path nel codice:"
-grep -n "full_path\|file_path\|rom_path" /backend/endpoints/roms/__init__.py 2>/dev/null | head -20
-grep -n "full_path" /backend/models/rom.py 2>/dev/null | head -20
+# ── DEBUG: montaggi e path ────────────────────────────────────────────────────
+log "=== DEBUG MONTAGGI ==="
+log "Tutti i mount points del container:"
+cat /proc/mounts | grep -v "proc\|sys\|dev\|cgroup\|tmpfs" | head -20
+log "Contenuto /romm:"
+ls -la /romm/
+log "Contenuto /romm/library:"
+ls -la /romm/library/ | head -10
+log "Contenuto /share:"
+ls -la /share/ | head -10
+log "full_path nel modello ROM:"
+sed -n '295,315p' /backend/models/rom.py
 log "=== FINE DEBUG ==="
 
 log "ROMM_BASE_PATH: /romm"
