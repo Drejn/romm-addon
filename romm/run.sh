@@ -59,13 +59,11 @@ mkdir -p /share/romm/assets
 mkdir -p /share/romm/config
 mkdir -p /share/romm/library
 
-export $ROM_LIBRARY = /share/romm/library
 # Crea il config.yml se non esiste
 if [ ! -f "/share/romm/config/config.yml" ]; then
     log "Creazione config.yml..."
     touch /share/romm/config/config.yml
 fi
-log "ROM_LIBRARY: $ROM_LIBRARY"
 # Libreria ROM: path diretto, niente symlink
 
 log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
