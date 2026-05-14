@@ -11,7 +11,7 @@ if [ ! -f "$OPTIONS" ]; then
 fi
 
 # ── Leggi le opzioni da HA ────────────────────────────────────────────────────
-ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/roms"' "$OPTIONS")
+ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/roms/roms"' "$OPTIONS")
 MARIADB_HOST=$(jq -r '.mariadb_host // "core-mariadb"' "$OPTIONS")
 MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
 MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
@@ -50,21 +50,17 @@ export DB_NAME="$MARIADB_DB"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
 # ── Percorsi ──────────────────────────────────────────────────────────────────
-# ROMM_BASE_PATH=/share così sia /share/roms che /share/romm
-# sono sotto lo stesso genitore e RomM non blocca l'accesso ai file
 export ROMM_BASE_PATH=/share
 
 mkdir -p /share/romm/resources
 mkdir -p /share/romm/assets
 mkdir -p /share/romm/config
 
-# Crea il config.yml se non esiste
 if [ ! -f "/share/romm/config/config.yml" ]; then
     log "Creazione config.yml..."
     touch /share/romm/config/config.yml
 fi
 
-# Libreria ROM: path diretto, niente symlink
 if [ ! -d "$ROM_LIBRARY" ]; then
     log "Cartella ROM '$ROM_LIBRARY' non trovata, verrà creata."
     mkdir -p "$ROM_LIBRARY"
@@ -73,6 +69,23 @@ fi
 log "ROMM_BASE_PATH: /share"
 log "Libreria ROM:   $ROM_LIBRARY"
 log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
+
+# ── DEBUG: mostra i path nel database ────────────────────────────────────────
+log "=== DEBUG: path nel database ==="
+# Installa mysql client se non presente
+if ! command -v mysql &>/dev/null; then
+    apk add --no-cache mysql-client 2>/dev/null || true
+fi
+if command -v mysql &>/dev/null; then
+    mysql -h "$MARIADB_HOST" -P "$MARIADB_PORT" \
+          -u "$MARIADB_USER" -p"$MARIADB_PASS" "$MARIADB_DB" \
+          -e "SELECT id, file_name, file_path FROM rom_files LIMIT 10;" 2>/dev/null \
+    && log "=== FINE DEBUG ===" \
+    || log "=== DEBUG: impossibile connettersi al DB ==="
+else
+    log "=== DEBUG: mysql client non disponibile ==="
+fi
+
 log "Avvio RomM sulla porta 8080..."
 
 # ── Avvio ─────────────────────────────────────────────────────────────────────
