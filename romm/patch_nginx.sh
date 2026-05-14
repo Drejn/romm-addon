@@ -3,27 +3,26 @@ set -euo pipefail
 
 NGINX_CONF="/etc/nginx/nginx.conf"
 BACKUP_CONF="/etc/nginx/nginx.conf.orig"
-INSERTED_FLAG="/tmp/romm_nginx_patch_done"
+FLAG="/tmp/romm_nginx_patch_done"
 
-# Non ripetere l'inserimento se già fatto in build precedente
-if [ -f "${INSERTED_FLAG}" ]; then
+if [ -f "${FLAG}" ]; then
   echo "Patch già applicata in questa immagine. Esco."
   exit 0
 fi
 
-# Backup del file originale (solo la prima volta)
-if [ ! -f "${BACKUP_CONF}" ] && [ -f "${NGINX_CONF}" ]; then
+if [ ! -f "${NGINX_CONF}" ]; then
+  echo "Errore: ${NGINX_CONF} non trovato. Esco."
+  exit 1
+fi
+
+# Backup (solo la prima volta)
+if [ ! -f "${BACKUP_CONF}" ]; then
   cp "${NGINX_CONF}" "${BACKUP_CONF}"
   echo "Backup creato: ${BACKUP_CONF}"
 fi
 
-# Scegli il percorso della library (adatta se necessario)
-CANDIDATES=(
-  "/share/romm/library"
-  "/var/lib/romm/library"
-  "/opt/romm/library"
-)
-
+# Individua percorso library esistente (adatta se necessario)
+CANDIDATES=( "/share/romm/library" "/var/lib/romm/library" "/opt/romm/library" )
 LIB_PATH=""
 for p in "${CANDIDATES[@]}"; do
   if [ -d "$p" ]; then
@@ -31,92 +30,82 @@ for p in "${CANDIDATES[@]}"; do
     break
   fi
 done
-
-# Se nessun candidato esiste, usa il primo come default (l'utente dovrà adattare)
 if [ -z "$LIB_PATH" ]; then
   LIB_PATH="${CANDIDATES[0]}"
-  echo "Nessun percorso library esistente trovato; userò il percorso predefinito: ${LIB_PATH}"
+  echo "Nessun percorso library trovato; userò il predefinito: ${LIB_PATH}"
 fi
+case "$LIB_PATH" in */) ;; *) LIB_PATH="${LIB_PATH}/" ;; esac
 
-# Assicura trailing slash per alias
-case "$LIB_PATH" in
-  */) ;;
-  *) LIB_PATH="${LIB_PATH}/" ;;
-esac
-
-# Crea symlink /var/lib/romm/library -> $LIB_PATH se non esiste e se possibile
+# Crea symlink se possibile (non fallisce il build se non permesso)
 if [ ! -e "/var/lib/romm/library" ]; then
   mkdir -p /var/lib/romm 2>/dev/null || true
-  if ln -sfn "$LIB_PATH" /var/lib/romm/library 2>/dev/null; then
-    echo "Symlink creato: /var/lib/romm/library -> ${LIB_PATH}"
-  else
-    echo "Impossibile creare symlink /var/lib/romm/library (potrebbe essere readonly). Continuo comunque."
-  fi
+  ln -sfn "$LIB_PATH" /var/lib/romm/library 2>/dev/null || true
 fi
 
-# Blocco location da inserire (modifica qui se vuoi un path diverso)
+# Blocco da inserire (usa alias o location proxy a seconda del bisogno)
 read -r -d '' LOCATION_BLOCK <<EOF || true
     # BEGIN romm_custom: internal library alias
     location /library/ {
         internal;
         alias ${LIB_PATH};
-        # disabilita buffering per streaming
         proxy_buffering off;
     }
     # END romm_custom
 EOF
 
-# Funzione che inserisce il blocco nel server con listen su 8998 o nel primo server
-insert_location() {
-  local src="$1"
-  local dst="${src}.patched"
-  awk -v loc="$LOCATION_BLOCK" '
-    BEGIN { in_server=0; target_server=0; inserted=0; server_level=0 }
-    {
-      print $0
-      # rileva inizio server
-      if ($0 ~ /server[[:space:]]*\{/) {
-        in_server=1
-        server_level=1
-        server_text = $0
-      }
-      # se siamo dentro un server, cerca listen 8998
-      if (in_server && $0 ~ /listen[[:space:]]+.*8998/) {
-        target_server=1
-      }
-      # gestione annidamento graffe: conta livelli per server block robusto
-      if (in_server) {
-        # conta '{' e '}' per capire quando chiude il server
-        n_open = gsub(/\{/, "{", $0)
-        n_close = gsub(/\}/, "}", $0)
-        server_level += n_open - n_close
-        if (server_level <= 0) {
-          if (target_server && !inserted) {
-            print loc
-            inserted=1
-          } else if (!target_server && !inserted) {
-            # fallback: inserisci nel primo server se non abbiamo trovato listen 8998
-            print loc
-            inserted=1
-          }
-          in_server=0
-          target_server=0
-          server_level=0
-        }
-      }
-    }
-  ' "$src" > "$dst" && mv "$dst" "$src"
-}
-
-# Verifica che il file esista
-if [ ! -f "${NGINX_CONF}" ]; then
-  echo "Errore: ${NGINX_CONF} non trovato. Esco."
-  exit 1
+# Se la patch è già presente nel file, esci
+if grep -q "BEGIN romm_custom" "${NGINX_CONF}"; then
+  echo "Patch già presente in ${NGINX_CONF}."
+  touch "${FLAG}"
+  exit 0
 fi
 
-# Applica l'inserimento
-insert_location "${NGINX_CONF}"
-echo "Blocco location inserito in ${NGINX_CONF}."
+# Funzione: inserisce locazione SOLO dentro http -> server
+awk -v loc="$LOCATION_BLOCK" '
+  BEGIN {
+    in_http=0; in_server=0; http_level=0; server_level=0; inserted=0;
+  }
+  {
+    print $0;
+    # conta aperture/chiusure graffe per tracciare i livelli
+    n_open = gsub(/\{/, "{", $0);
+    n_close = gsub(/\}/, "}", $0);
+
+    # entra in http
+    if ($0 ~ /^[[:space:]]*http[[:space:]]*\{[[:space:]]*$/) {
+      in_http=1;
+      http_level += n_open - n_close;
+      next;
+    }
+    if (in_http) {
+      http_level += n_open - n_close;
+      # entra in server
+      if ($0 ~ /^[[:space:]]*server[[:space:]]*\{[[:space:]]*$/) {
+        in_server=1;
+        server_level = 1;
+        next;
+      }
+      if (in_server) {
+        # aggiorna livello server
+        server_level += n_open - n_close;
+        # se stiamo per chiudere il server, inserisci la location prima della chiusura
+        if (server_level <= 0 && !inserted) {
+          print loc;
+          inserted=1;
+          in_server=0;
+        }
+      }
+      # se chiude http senza aver inserito nulla, fallback: inserisci prima della chiusura di http
+      if (http_level <= 0 && !inserted) {
+        print loc;
+        inserted=1;
+        in_http=0;
+      }
+    }
+  }
+' "${NGINX_CONF}" > "${NGINX_CONF}.patched" && mv "${NGINX_CONF}.patched" "${NGINX_CONF}"
+
+echo "Blocco location inserito in ${NGINX_CONF} (sezione http->server)."
 
 # Verifica sintassi nginx se disponibile
 if command -v nginx >/dev/null 2>&1; then
@@ -129,6 +118,5 @@ else
   echo "nginx non disponibile in fase di build; verifica la sintassi a runtime."
 fi
 
-# Segna che la patch è stata applicata in questa immagine
-touch "${INSERTED_FLAG}"
+touch "${FLAG}"
 echo "Patch applicata con successo."
