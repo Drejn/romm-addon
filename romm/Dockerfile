@@ -1,29 +1,16 @@
-ARG BUILD_FROM
-FROM $BUILD_FROM AS base
+FROM rommapp/romm:latest
 
-# Installa bashio e dipendenze base
-RUN apk add --no-cache \
-    bash \
+# Installa le dipendenze necessarie per leggere le opzioni di HA
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    openssl
-
-# Scarica e installa l'immagine RomM copiando i suoi file
-FROM rommapp/romm:latest AS romm_source
-
-# Stage finale basato sull'immagine HA
-FROM base
-
-# Copia i file di RomM dall'immagine upstream
-COPY --from=romm_source /app /app
-COPY --from=romm_source /usr/local/lib/python3* /usr/local/lib/
-COPY --from=romm_source /usr/local/bin/python3* /usr/local/bin/
-COPY --from=romm_source /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+    jq \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copia lo script di avvio
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
-# Porta interna di RomM
 EXPOSE 8080
 
 CMD ["/run.sh"]

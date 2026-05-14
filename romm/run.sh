@@ -1,35 +1,43 @@
-#!/usr/bin/with-contenv bashio
+#!/bin/bash
+set -e
 
-bashio::log.info "Avvio RomM..."
+log() { echo "[RomM Addon] $*"; }
 
-# ── Leggi le opzioni dall'interfaccia HA ──────────────────────────────────────
-DB_TYPE=$(bashio::config 'db_type')
-ROM_LIBRARY=$(bashio::config 'rom_library_path')
-IGDB_ID=$(bashio::config 'igdb_client_id')
-IGDB_SECRET=$(bashio::config 'igdb_client_secret')
-SS_USER=$(bashio::config 'screenscraper_user')
-SS_PASS=$(bashio::config 'screenscraper_password')
+OPTIONS="/data/options.json"
+
+if [ ! -f "$OPTIONS" ]; then
+    log "ERRORE: file opzioni non trovato in $OPTIONS"
+    exit 1
+fi
+
+# ── Leggi le opzioni da HA ────────────────────────────────────────────────────
+DB_TYPE=$(jq -r '.db_type // "sqlite"' "$OPTIONS")
+ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/roms"' "$OPTIONS")
+IGDB_ID=$(jq -r '.igdb_client_id // ""' "$OPTIONS")
+IGDB_SECRET=$(jq -r '.igdb_client_secret // ""' "$OPTIONS")
+SS_USER=$(jq -r '.screenscraper_user // ""' "$OPTIONS")
+SS_PASS=$(jq -r '.screenscraper_password // ""' "$OPTIONS")
 
 # ── Genera la secret key se non esiste già ────────────────────────────────────
 SECRET_KEY_FILE="/data/romm_secret_key"
 if [ ! -f "$SECRET_KEY_FILE" ]; then
-    bashio::log.info "Generazione ROMM_AUTH_SECRET_KEY..."
+    log "Generazione ROMM_AUTH_SECRET_KEY..."
     openssl rand -hex 32 > "$SECRET_KEY_FILE"
 fi
 export ROMM_AUTH_SECRET_KEY=$(cat "$SECRET_KEY_FILE")
 
 # ── Configurazione database ───────────────────────────────────────────────────
 if [ "$DB_TYPE" = "mariadb" ]; then
-    bashio::log.info "Utilizzo MariaDB come database..."
+    log "Utilizzo MariaDB come database..."
 
-    MARIADB_HOST=$(bashio::config 'mariadb_host')
-    MARIADB_PORT=$(bashio::config 'mariadb_port')
-    MARIADB_USER=$(bashio::config 'mariadb_user')
-    MARIADB_PASS=$(bashio::config 'mariadb_password')
-    MARIADB_DB=$(bashio::config 'mariadb_database')
+    MARIADB_HOST=$(jq -r '.mariadb_host // ""' "$OPTIONS")
+    MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
+    MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
+    MARIADB_PASS=$(jq -r '.mariadb_password // ""' "$OPTIONS")
+    MARIADB_DB=$(jq -r '.mariadb_database // "romm"' "$OPTIONS")
 
-    if bashio::config.is_empty 'mariadb_host' || bashio::config.is_empty 'mariadb_user' || bashio::config.is_empty 'mariadb_password'; then
-        bashio::log.error "Con db_type=mariadb devi compilare mariadb_host, mariadb_user e mariadb_password!"
+    if [ -z "$MARIADB_HOST" ] || [ -z "$MARIADB_USER" ] || [ -z "$MARIADB_PASS" ]; then
+        log "ERRORE: con db_type=mariadb devi compilare mariadb_host, mariadb_user e mariadb_password!"
         exit 1
     fi
 
@@ -39,8 +47,7 @@ if [ "$DB_TYPE" = "mariadb" ]; then
     export DB_PASSWD="$MARIADB_PASS"
     export DB_NAME="$MARIADB_DB"
 else
-    bashio::log.info "Utilizzo SQLite come database..."
-    # RomM usa SQLite automaticamente se DB_HOST non è impostato
+    log "Utilizzo SQLite come database..."
     unset DB_HOST
 fi
 
@@ -51,27 +58,22 @@ fi
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
 # ── Percorsi ──────────────────────────────────────────────────────────────────
-export ROMM_BASE_PATH="/data/romm"
-mkdir -p "$ROMM_BASE_PATH/resources"
-mkdir -p "$ROMM_BASE_PATH/assets"
-mkdir -p "$ROMM_BASE_PATH/config"
+mkdir -p /data/romm/resources
+mkdir -p /data/romm/assets
+mkdir -p /data/romm/config
 
-# Mappa la libreria ROM configurata dall'utente
 if [ ! -d "$ROM_LIBRARY" ]; then
-    bashio::log.warning "La cartella ROM '$ROM_LIBRARY' non esiste. Verrà creata."
+    log "La cartella ROM '$ROM_LIBRARY' non esiste, verrà creata."
     mkdir -p "$ROM_LIBRARY"
 fi
 
-# Link simbolico: RomM si aspetta la libreria in /romm/library
-ln -sfn "$ROM_LIBRARY" /romm/library || true
+# RomM si aspetta la libreria in /romm/library
+ln -sfn "$ROM_LIBRARY" /romm/library 2>/dev/null || true
 
-bashio::log.info "Libreria ROM: $ROM_LIBRARY"
-bashio::log.info "Database: $DB_TYPE"
-bashio::log.info "Avvio del server RomM sulla porta 8080..."
+log "Libreria ROM: $ROM_LIBRARY"
+log "Database: $DB_TYPE"
+log "Avvio RomM sulla porta 8080..."
 
 # ── Avvio ─────────────────────────────────────────────────────────────────────
-exec python3 -m uvicorn main:app \
-    --host 0.0.0.0 \
-    --port 8080 \
-    --workers 2 \
-    --app-dir /app
+exec /app/entrypoint.sh
+
