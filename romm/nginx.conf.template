@@ -10,8 +10,10 @@ http {
       add_header Content-Type application/json;
     }
 
+    # public endpoint that proxies to internal backend
     location = /decode {
-      internal;
+      # keep internal removed so nginx will accept external requests,
+      # but we pass a secret header to the backend for protection
       proxy_pass http://127.0.0.1:8081/decode_internal;
       proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
