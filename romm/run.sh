@@ -58,8 +58,6 @@ mkdir -p /share/romm/resources
 mkdir -p /share/romm/assets
 mkdir -p /share/romm/config
 
-$ROM_LIBRARY =/share/romm/library
-
 # Crea il config.yml se non esiste
 if [ ! -f "/share/romm/config/config.yml" ]; then
     log "Creazione config.yml..."
