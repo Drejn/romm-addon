@@ -70,7 +70,7 @@ if [ ! -d "$ROM_LIBRARY" ]; then
     mkdir -p "$ROM_LIBRARY"
 fi
 
-log "ROMM_BASE_PATH: /share"
+log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
 log "Libreria ROM:   $ROM_LIBRARY"
 log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
