@@ -111,8 +111,12 @@ fi
 sed "s|__INTERNAL_SECRET__|${INTERNAL_SECRET}|g" /nginx.conf.template > /etc/nginx/nginx.conf
 
 # Ensure uvicorn binds to localhost:8081 (only accessible inside container)
-uvicorn app.main:app --host 127.0.0.1 --port 8081 &
+#uvicorn app.main:app --host 127.0.0.1 --port 8081 &
 
 # Start nginx in foreground
-nginx -g "daemon off;"
+#nginx -g "daemon off;"
 
+# esempio run.sh temporaneo per debug
+uvicorn app.main:app --host 0.0.0.0 --port 8080 --log-level info &
+# non avviare nginx in questa modalità
+tail -f /dev/null
