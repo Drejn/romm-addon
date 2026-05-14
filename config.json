@@ -1,0 +1,23 @@
+{
+  "name": "RomM",
+  "version": "0.1.0",
+  "slug": "romm",
+  "description": "RomM self-hosted ROM manager",
+  "arch": ["amd64", "arm64"],
+  "startup": "services",
+  "boot": "auto",
+  "ports": {
+    "8998/tcp": 8998
+  },
+  "ports_description": {
+    "8998/tcp": "RomM Web UI"
+  },
+  "map": ["share:rw"],
+  "options": {
+    "base_path": "/share/romm"
+  },
+  "schema": {
+    "base_path": "str"
+  },
+  "webui": "http://[HOST]:[PORT:8998]"
+}

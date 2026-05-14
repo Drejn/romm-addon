@@ -11,7 +11,7 @@ if [ ! -f "$OPTIONS" ]; then
 fi
 
 # ── Leggi le opzioni da HA ────────────────────────────────────────────────────
-ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/roms"' "$OPTIONS")
+
 MARIADB_HOST=$(jq -r '.mariadb_host // "core-mariadb"' "$OPTIONS")
 MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
 MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
@@ -52,35 +52,22 @@ export DB_NAME="$MARIADB_DB"
 # ── Percorsi ──────────────────────────────────────────────────────────────────
 # ROMM_BASE_PATH=/share così sia /share/roms che /share/romm
 # sono sotto lo stesso genitore e RomM non blocca l'accesso ai file
-export ROMM_BASE_PATH=/share
+export ROMM_BASE_PATH=/share/romm
 
 mkdir -p /share/romm/resources
 mkdir -p /share/romm/assets
 mkdir -p /share/romm/config
+mkdir -p /share/romm/library
 
 # Crea il config.yml se non esiste
 if [ ! -f "/share/romm/config/config.yml" ]; then
     log "Creazione config.yml..."
     touch /share/romm/config/config.yml
 fi
-
 # Libreria ROM: path diretto, niente symlink
-if [ ! -d "$ROM_LIBRARY" ]; then
-    log "Cartella ROM '$ROM_LIBRARY' non trovata, verrà creata."
-    mkdir -p "$ROM_LIBRARY"
-fi
 
-# ── Fix permessi adattivo ─────────────────────────────────────────────────────
-CURRENT_UID=$(id -u)
-CURRENT_GID=$(id -g)
-log "Utente corrente: uid=$CURRENT_UID gid=$CURRENT_GID"
-log "Correzione permessi libreria ROM..."
-chmod -R 755 "$ROM_LIBRARY" 2>/dev/null || true
-chown -R "${CURRENT_UID}:${CURRENT_GID}" "$ROM_LIBRARY" 2>/dev/null || true
-chown -R "${CURRENT_UID}:${CURRENT_GID}" /share/romm 2>/dev/null || true
+log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
 
-log "ROMM_BASE_PATH: /share"
-log "Libreria ROM:   $ROM_LIBRARY"
 log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
 

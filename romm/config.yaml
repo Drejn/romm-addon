@@ -1,5 +1,5 @@
 name: RomM
-version: "1.0.3"
+version: "1.0.4"
 slug: romm
 description: Beautiful, powerful self-hosted ROM manager and player
 url: https://github.com/rommapp/romm
@@ -20,7 +20,7 @@ options:
   mariadb_user: ""
   mariadb_password: ""
   mariadb_database: romm
-  rom_library_path: /share/roms/roms
+  rom_library_path: /share/romm/library
   igdb_client_id: ""
   igdb_client_secret: ""
   screenscraper_user: ""
