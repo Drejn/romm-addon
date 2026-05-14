@@ -6,6 +6,7 @@ log() { echo "[RomM Addon] $*"; }
 OPTIONS="/data/options.json"
 if [ ! -f "$OPTIONS" ]; then log "ERRORE: options non trovato"; exit 1; fi
 
+ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/romm/library"' "$OPTIONS")
 MARIADB_HOST=$(jq -r '.mariadb_host // "core-mariadb"' "$OPTIONS")
 MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
 MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
@@ -35,20 +36,18 @@ export DB_NAME="$MARIADB_DB"
 [ -n "$SS_USER" ]     && export SCREENSCRAPER_USER="$SS_USER"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
-export ROMM_BASE_PATH=/romm
+ROMM_BASE=$(dirname "$ROM_LIBRARY")
+export ROMM_BASE_PATH="$ROMM_BASE"
 
-# ── Mount bind: collega /share/romm/* a /romm/* ───────────────────────────────
-for DIR in library resources assets config; do
-    mkdir -p "/share/romm/$DIR" "/romm/$DIR"
-    mount --bind "/share/romm/$DIR" "/romm/$DIR"
-    log "Montato: /share/romm/$DIR → /romm/$DIR"
-done
+mkdir -p "$ROMM_BASE_PATH/library"
+mkdir -p "$ROMM_BASE_PATH/resources"
+mkdir -p "$ROMM_BASE_PATH/assets"
+mkdir -p "$ROMM_BASE_PATH/config"
+[ ! -f "$ROMM_BASE_PATH/config/config.yml" ] && touch "$ROMM_BASE_PATH/config/config.yml"
+chmod -R 755 "$ROMM_BASE_PATH" 2>/dev/null || true
 
-[ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
-chmod -R 755 /share/romm 2>/dev/null || true
-
-log "ROMM_BASE_PATH: /romm"
-log "Database: MariaDB @ $MARIADB_HOST/$MARIADB_DB"
+log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
+log "Libreria ROM:   $ROM_LIBRARY"
 log "Avvio RomM sulla porta 8080..."
 
 if [ -f "/init" ]; then exec /init
