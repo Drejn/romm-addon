@@ -11,7 +11,7 @@ if [ ! -f "$OPTIONS" ]; then
 fi
 
 # ── Leggi le opzioni da HA ────────────────────────────────────────────────────
-ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/roms"' "$OPTIONS")
+ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/romm"' "$OPTIONS")
 MARIADB_HOST=$(jq -r '.mariadb_host // "core-mariadb"' "$OPTIONS")
 MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
 MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
@@ -52,7 +52,7 @@ export DB_NAME="$MARIADB_DB"
 # ── Percorsi ──────────────────────────────────────────────────────────────────
 # ROMM_BASE_PATH=/share così sia /share/roms che /share/romm
 # sono sotto lo stesso genitore e RomM non blocca l'accesso ai file
-export ROMM_BASE_PATH=/share
+export ROMM_BASE_PATH=/share/romm
 
 mkdir -p /share/romm/resources
 mkdir -p /share/romm/assets
@@ -63,7 +63,7 @@ if [ ! -f "/share/romm/config/config.yml" ]; then
     log "Creazione config.yml..."
     touch /share/romm/config/config.yml
 fi
-
+log "ROM_LIBRARY:: $ROMLIBRARY"
 # Libreria ROM: path diretto, niente symlink
 if [ ! -d "$ROM_LIBRARY" ]; then
     log "Cartella ROM '$ROM_LIBRARY' non trovata, verrà creata."
