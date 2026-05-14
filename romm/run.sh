@@ -6,8 +6,7 @@ log() { echo "[RomM Addon] $*"; }
 OPTIONS="/data/options.json"
 if [ ! -f "$OPTIONS" ]; then log "ERRORE: options non trovato"; exit 1; fi
 
-# ── Leggi le opzioni ──────────────────────────────────────────────────────────
-ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/roms/library"' "$OPTIONS")
+ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/romm/library"' "$OPTIONS")
 MARIADB_HOST=$(jq -r '.mariadb_host // "core-mariadb"' "$OPTIONS")
 MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
 MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
@@ -22,50 +21,41 @@ if [ -z "$MARIADB_USER" ] || [ -z "$MARIADB_PASS" ]; then
     log "ERRORE: mariadb_user e mariadb_password obbligatori!"; exit 1
 fi
 
-# ── Secret key ────────────────────────────────────────────────────────────────
 SECRET_KEY_FILE="/data/romm_secret_key"
-if [ ! -f "$SECRET_KEY_FILE" ]; then
-    openssl rand -hex 32 > "$SECRET_KEY_FILE"
-fi
+if [ ! -f "$SECRET_KEY_FILE" ]; then openssl rand -hex 32 > "$SECRET_KEY_FILE"; fi
 export ROMM_AUTH_SECRET_KEY=$(cat "$SECRET_KEY_FILE")
 
-# ── Database ──────────────────────────────────────────────────────────────────
 export DB_HOST="$MARIADB_HOST"
 export DB_PORT="$MARIADB_PORT"
 export DB_USER="$MARIADB_USER"
 export DB_PASSWD="$MARIADB_PASS"
 export DB_NAME="$MARIADB_DB"
 
-# ── Metadati ──────────────────────────────────────────────────────────────────
 [ -n "$IGDB_ID" ]     && export IGDB_CLIENT_ID="$IGDB_ID"
 [ -n "$IGDB_SECRET" ] && export IGDB_CLIENT_SECRET="$IGDB_SECRET"
 [ -n "$SS_USER" ]     && export SCREENSCRAPER_USER="$SS_USER"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
-# ── Percorsi ──────────────────────────────────────────────────────────────────
-# ROMM_BASE_PATH deve essere il genitore diretto di /library, /resources, ecc.
-# ROM_LIBRARY deve essere esattamente ROMM_BASE_PATH/library
-# In questo modo .resolve() non esce mai da ROMM_BASE_PATH
-
-# Deriva ROMM_BASE_PATH dal path della libreria configurata
-# Se l'utente imposta /share/roms/library → ROMM_BASE_PATH=/share/roms
 ROMM_BASE=$(dirname "$ROM_LIBRARY")
 export ROMM_BASE_PATH="$ROMM_BASE"
-
-log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
-log "LIBRARY_BASE_PATH: $ROMM_BASE_PATH/library"
 
 mkdir -p "$ROMM_BASE_PATH/library"
 mkdir -p "$ROMM_BASE_PATH/resources"
 mkdir -p "$ROMM_BASE_PATH/assets"
 mkdir -p "$ROMM_BASE_PATH/config"
-
-if [ ! -f "$ROMM_BASE_PATH/config/config.yml" ]; then
-    touch "$ROMM_BASE_PATH/config/config.yml"
-fi
-
+[ ! -f "$ROMM_BASE_PATH/config/config.yml" ] && touch "$ROMM_BASE_PATH/config/config.yml"
 chmod -R 755 "$ROMM_BASE_PATH" 2>/dev/null || true
 
+# ── DEBUG: decode.js e nginx location ────────────────────────────────────────
+log "=== DEBUG NGINX ==="
+log "decode.js:"
+cat /etc/nginx/js/decode.js 2>/dev/null || log "non trovato"
+log "nginx.conf location blocks:"
+grep -A 20 "location" /etc/nginx/nginx.conf 2>/dev/null || log "non trovato"
+log "=== FINE DEBUG ==="
+
+log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
+log "LIBRARY_BASE_PATH: $ROMM_BASE_PATH/library"
 log "Libreria ROM:   $ROM_LIBRARY"
 log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
