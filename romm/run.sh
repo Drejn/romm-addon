@@ -66,14 +66,15 @@ if [ ! -d "$ROM_LIBRARY" ]; then
     mkdir -p "$ROM_LIBRARY"
 fi
 
-# ── Fix permessi adattivo ─────────────────────────────────────────────────────
-CURRENT_UID=$(id -u)
-CURRENT_GID=$(id -g)
-log "Utente corrente: uid=$CURRENT_UID gid=$CURRENT_GID"
+# ── Fix permessi ──────────────────────────────────────────────────────────────
+# nginx e romm girano con uid diversi all'interno del container
+# Usiamo chmod 755 (leggibile da tutti) invece di chown a un utente specifico
 log "Correzione permessi libreria ROM..."
-chmod -R 755 "$ROM_LIBRARY" 2>/dev/null || true
-chown -R "${CURRENT_UID}:${CURRENT_GID}" "$ROM_LIBRARY" 2>/dev/null || true
-chown -R "${CURRENT_UID}:${CURRENT_GID}" /share/romm 2>/dev/null || true
+find "$ROM_LIBRARY" -type d -exec chmod 755 {} \;
+find "$ROM_LIBRARY" -type f -exec chmod 644 {} \;
+find /share/romm -type d -exec chmod 755 {} \;
+find /share/romm -type f -exec chmod 644 {} \;
+log "Permessi applicati: cartelle=755 file=644"
 
 log "ROMM_BASE_PATH: /share"
 log "Libreria ROM:   $ROM_LIBRARY"
