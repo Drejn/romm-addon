@@ -41,14 +41,11 @@ mkdir -p /romm/resources /romm/assets /romm/config
 [ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
 chmod -R 755 /romm 2>/dev/null || true
 
-# ── DEBUG: trova dove viene generato X-Archive-Files ─────────────────────────
-log "=== DEBUG X-Archive-Files ==="
-log "Cerco generazione header X-Archive-Files e decode:"
-grep -rn "X-Archive-Files\|X-Archive\|decode\|base64" /backend/ 2>/dev/null \
-    | grep -v ".pyc" | grep -v "Binary" | head -40
-log "File rom endpoint:"
-find /backend -name "*.py" | xargs grep -l "content\|download\|stream" 2>/dev/null \
-    | grep -i "rom\|download" | head -5
+# ── DEBUG: leggi nginx.py e roms/__init__.py ──────────────────────────────────
+log "=== DEBUG nginx.py ==="
+cat /backend/utils/nginx.py
+log "=== DEBUG roms/__init__.py righe 670-720 ==="
+sed -n '670,720p' /backend/endpoints/roms/__init__.py
 log "=== FINE DEBUG ==="
 
 log "ROMM_BASE_PATH: /romm"
