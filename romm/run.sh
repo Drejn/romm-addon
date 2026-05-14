@@ -67,13 +67,9 @@ if [ ! -f "/share/romm/config/config.yml" ]; then
 fi
 log "ROM_LIBRARY: $ROM_LIBRARY"
 # Libreria ROM: path diretto, niente symlink
-if [ ! -d "$ROM_LIBRARY" ]; then
-    log "Cartella ROM '$ROM_LIBRARY' non trovata, verrà creata."
-    mkdir -p "$ROM_LIBRARY"
-fi
 
 log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
-log "Libreria ROM:   $ROM_LIBRARY"
+
 log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
 
