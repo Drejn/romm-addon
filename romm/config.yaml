@@ -1,5 +1,5 @@
 name: RomM
-version: "1.0.6"
+version: "1.0.7"
 slug: romm
 description: Beautiful, powerful self-hosted ROM manager and player
 url: https://github.com/rommapp/romm
@@ -8,16 +8,13 @@ arch:
   - aarch64
   - armv7
 init: false
+full_access: true
 ports:
   8080/tcp: 8998
 ports_description:
   8080/tcp: RomM Web Interface
 map:
   - share:rw
-  - share/romm/library:/romm/library:rw
-  - share/romm/resources:/romm/resources:rw
-  - share/romm/assets:/romm/assets:rw
-  - share/romm/config:/romm/config:rw
 options:
   mariadb_host: "core-mariadb"
   mariadb_port: 3306
