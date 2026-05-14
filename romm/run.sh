@@ -50,30 +50,27 @@ export DB_NAME="$MARIADB_DB"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
 # ── Percorsi ──────────────────────────────────────────────────────────────────
-# ROMM_BASE_PATH dice a RomM dove trovare library, resources, assets e config
-# Usiamo /share/romm così tutto sta dentro /share che HA monta via map: share:rw
-export ROMM_BASE_PATH=/share/romm
+# ROMM_BASE_PATH=/share così sia /share/roms che /share/romm
+# sono sotto lo stesso genitore e RomM non blocca l'accesso ai file
+export ROMM_BASE_PATH=/share
 
 mkdir -p /share/romm/resources
 mkdir -p /share/romm/assets
 mkdir -p /share/romm/config
 
-# Crea il config.yml se non esiste (evita il CRITICAL al primo avvio)
+# Crea il config.yml se non esiste
 if [ ! -f "/share/romm/config/config.yml" ]; then
     log "Creazione config.yml..."
     touch /share/romm/config/config.yml
 fi
 
-# La libreria ROM configurata dall'utente
+# Libreria ROM: path diretto, niente symlink
 if [ ! -d "$ROM_LIBRARY" ]; then
     log "Cartella ROM '$ROM_LIBRARY' non trovata, verrà creata."
     mkdir -p "$ROM_LIBRARY"
 fi
 
-# RomM si aspetta la libreria in $ROMM_BASE_PATH/library
-ln -sfn "$ROM_LIBRARY" /share/romm/library 2>/dev/null || true
-
-log "ROMM_BASE_PATH: /share/romm"
+log "ROMM_BASE_PATH: /share"
 log "Libreria ROM:   $ROM_LIBRARY"
 log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
