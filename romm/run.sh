@@ -66,26 +66,18 @@ if [ ! -d "$ROM_LIBRARY" ]; then
     mkdir -p "$ROM_LIBRARY"
 fi
 
+# ── Fix permessi adattivo ─────────────────────────────────────────────────────
+CURRENT_UID=$(id -u)
+CURRENT_GID=$(id -g)
+log "Utente corrente: uid=$CURRENT_UID gid=$CURRENT_GID"
+log "Correzione permessi libreria ROM..."
+chmod -R 755 "$ROM_LIBRARY" 2>/dev/null || true
+chown -R "${CURRENT_UID}:${CURRENT_GID}" "$ROM_LIBRARY" 2>/dev/null || true
+chown -R "${CURRENT_UID}:${CURRENT_GID}" /share/romm 2>/dev/null || true
+
 log "ROMM_BASE_PATH: /share"
 log "Libreria ROM:   $ROM_LIBRARY"
 log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
-
-# ── DEBUG: mostra i path nel database ────────────────────────────────────────
-log "=== DEBUG: path nel database ==="
-# Installa mysql client se non presente
-if ! command -v mysql &>/dev/null; then
-    apk add --no-cache mysql-client 2>/dev/null || true
-fi
-if command -v mysql &>/dev/null; then
-    mysql -h "$MARIADB_HOST" -P "$MARIADB_PORT" \
-          -u "$MARIADB_USER" -p"$MARIADB_PASS" "$MARIADB_DB" \
-          -e "SELECT id, file_name, file_path FROM rom_files LIMIT 10;" 2>/dev/null \
-    && log "=== FINE DEBUG ===" \
-    || log "=== DEBUG: impossibile connettersi al DB ==="
-else
-    log "=== DEBUG: mysql client non disponibile ==="
-fi
-
 log "Avvio RomM sulla porta 8080..."
 
 # ── Avvio ─────────────────────────────────────────────────────────────────────
