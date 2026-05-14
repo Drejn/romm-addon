@@ -7,7 +7,7 @@ OPTIONS="/data/options.json"
 if [ ! -f "$OPTIONS" ]; then log "ERRORE: options non trovato"; exit 1; fi
 
 # ── Leggi le opzioni ──────────────────────────────────────────────────────────
-ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/roms/roms"' "$OPTIONS")
+ROM_LIBRARY=$(jq -r '.rom_library_path // "/share/roms/library"' "$OPTIONS")
 MARIADB_HOST=$(jq -r '.mariadb_host // "core-mariadb"' "$OPTIONS")
 MARIADB_PORT=$(jq -r '.mariadb_port // 3306' "$OPTIONS")
 MARIADB_USER=$(jq -r '.mariadb_user // ""' "$OPTIONS")
@@ -42,31 +42,32 @@ export DB_NAME="$MARIADB_DB"
 [ -n "$SS_USER" ]     && export SCREENSCRAPER_USER="$SS_USER"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
-# ── DEBUG: trova LIBRARY_BASE_PATH ────────────────────────────────────────────
-log "=== DEBUG LIBRARY_BASE_PATH ==="
-log "Cerco LIBRARY_BASE_PATH nel codice:"
-grep -rn "LIBRARY_BASE_PATH\|ROMM_BASE_PATH\|library_base\|base_path" \
-    /backend/config/ /backend/utils/ /backend/handler/filesystem/base_handler.py \
-    2>/dev/null | grep -v ".pyc" | head -30
-log "Variabili d'ambiente RomM riconosciute:"
-grep -rn "os.environ\|os.getenv\|environ.get" /backend/config/ 2>/dev/null | head -20
-log "=== FINE DEBUG ==="
-
 # ── Percorsi ──────────────────────────────────────────────────────────────────
-# /romm/library è montato da HAOS come volume — copiamo le ROM dentro
-log "Sincronizzazione ROM in /romm/library..."
-if [ -d "$ROM_LIBRARY" ]; then
-    # Copia solo i file mancanti (non sovrascrive, non cancella)
-    cp -rn "$ROM_LIBRARY"/. /romm/library/ 2>/dev/null || true
+# ROMM_BASE_PATH deve essere il genitore diretto di /library, /resources, ecc.
+# ROM_LIBRARY deve essere esattamente ROMM_BASE_PATH/library
+# In questo modo .resolve() non esce mai da ROMM_BASE_PATH
+
+# Deriva ROMM_BASE_PATH dal path della libreria configurata
+# Se l'utente imposta /share/roms/library → ROMM_BASE_PATH=/share/roms
+ROMM_BASE=$(dirname "$ROM_LIBRARY")
+export ROMM_BASE_PATH="$ROMM_BASE"
+
+log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
+log "LIBRARY_BASE_PATH: $ROMM_BASE_PATH/library"
+
+mkdir -p "$ROMM_BASE_PATH/library"
+mkdir -p "$ROMM_BASE_PATH/resources"
+mkdir -p "$ROMM_BASE_PATH/assets"
+mkdir -p "$ROMM_BASE_PATH/config"
+
+if [ ! -f "$ROMM_BASE_PATH/config/config.yml" ]; then
+    touch "$ROMM_BASE_PATH/config/config.yml"
 fi
 
-mkdir -p /romm/resources /romm/assets /romm/config
-[ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
+chmod -R 755 "$ROMM_BASE_PATH" 2>/dev/null || true
 
-chmod -R 755 /romm/library 2>/dev/null || true
-
-log "Libreria ROM: $ROM_LIBRARY → /romm/library"
-log "Database:     MariaDB @ $MARIADB_HOST/$MARIADB_DB"
+log "Libreria ROM:   $ROM_LIBRARY"
+log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
 
 if [ -f "/init" ]; then exec /init
