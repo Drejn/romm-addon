@@ -41,11 +41,13 @@ mkdir -p /romm/resources /romm/assets /romm/config
 [ ! -f "/romm/config/config.yml" ] && touch /romm/config/config.yml
 chmod -R 755 /romm 2>/dev/null || true
 
-# ── DEBUG: leggi nginx.py e roms/__init__.py ──────────────────────────────────
-log "=== DEBUG nginx.py ==="
-cat /backend/utils/nginx.py
-log "=== DEBUG roms/__init__.py righe 670-720 ==="
-sed -n '670,720p' /backend/endpoints/roms/__init__.py
+# ── DEBUG: full_path nel DB e struttura fisica ────────────────────────────────
+log "=== DEBUG full_path ==="
+log "Struttura fisica /romm/library (prime 3 ROM):"
+find /romm/library -type f | head -5
+log "Cerco full_path nel codice:"
+grep -n "full_path\|file_path\|rom_path" /backend/endpoints/roms/__init__.py 2>/dev/null | head -20
+grep -n "full_path" /backend/models/rom.py 2>/dev/null | head -20
 log "=== FINE DEBUG ==="
 
 log "ROMM_BASE_PATH: /romm"
