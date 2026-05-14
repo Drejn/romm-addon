@@ -65,7 +65,7 @@ if [ ! -f "/share/romm/config/config.yml" ]; then
     log "Creazione config.yml..."
     touch /share/romm/config/config.yml
 fi
-log "ROM_LIBRARY: $ROMLIBRARY"
+log "ROM_LIBRARY: $ROM_LIBRARY"
 # Libreria ROM: path diretto, niente symlink
 if [ ! -d "$ROM_LIBRARY" ]; then
     log "Cartella ROM '$ROM_LIBRARY' non trovata, verrà creata."
