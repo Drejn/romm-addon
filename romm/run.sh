@@ -46,18 +46,24 @@ mkdir -p "$ROMM_BASE_PATH/config"
 [ ! -f "$ROMM_BASE_PATH/config/config.yml" ] && touch "$ROMM_BASE_PATH/config/config.yml"
 chmod -R 755 "$ROMM_BASE_PATH" 2>/dev/null || true
 
-# ── DEBUG: decode.js e nginx location ────────────────────────────────────────
-log "=== DEBUG NGINX ==="
-log "decode.js:"
-cat /etc/nginx/js/decode.js 2>/dev/null || log "non trovato"
-log "nginx.conf location blocks:"
-grep -A 20 "location" /etc/nginx/nginx.conf 2>/dev/null || log "non trovato"
+# ── DEBUG: trova tutti i file nginx config ────────────────────────────────────
+log "=== DEBUG NGINX COMPLETO ==="
+log "Tutti i file nginx:"
+find /etc/nginx -type f | sort
+log "Contenuto /etc/nginx/conf.d/ (se esiste):"
+for f in /etc/nginx/conf.d/*.conf; do
+    log "--- $f ---"
+    cat "$f" 2>/dev/null || log "non leggibile"
+done
+log "Contenuto /etc/nginx/sites-enabled/ (se esiste):"
+for f in /etc/nginx/sites-enabled/*; do
+    log "--- $f ---"
+    cat "$f" 2>/dev/null || log "non leggibile"
+done
 log "=== FINE DEBUG ==="
 
 log "ROMM_BASE_PATH: $ROMM_BASE_PATH"
-log "LIBRARY_BASE_PATH: $ROMM_BASE_PATH/library"
 log "Libreria ROM:   $ROM_LIBRARY"
-log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
 
 if [ -f "/init" ]; then exec /init
