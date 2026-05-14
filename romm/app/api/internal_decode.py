@@ -20,7 +20,9 @@ async def decode_internal(request: Request, file_path: str = Query(...)):
 
     allowed_roots = [
         Path("/share/romm/library").resolve(),
-        Path("/var/lib/romm/library").resolve()
+        Path("/var/lib/romm/library").resolve(),
+        Path(r"Z:\romm\library").resolve(),                # aggiunta per Windows mapped drive
+        Path(r"\\192.168.1.101\share\romm\library").resolve()  # opzionale: UNC path
     ]
     if not any(str(p).startswith(str(root)) for root in allowed_roots):
         logger.warning("Access denied to path outside allowed roots: %s", p)
