@@ -1,14 +1,34 @@
 #!/usr/bin/env bash
 set -e
+echo "=== RUN.SH DEBUG START ==="
+echo "Date: $(date)"
+echo "BASE_PATH='${BASE_PATH:-{{ base_path }}}'"
 
-BASE_PATH="{{ base_path }}"
+echo "--- Environment ---"
+env | sort
 
-export ROMM_LIBRARY_PATH="$BASE_PATH/library"
-export ROMM_ROMS_PATH="$BASE_PATH/roms"
-export ROMM_MEDIA_PATH="$BASE_PATH/media"
-export ROMM_CONFIG_PATH="$BASE_PATH/config"
+echo "--- Python info ---"
+which python || true
+python --version || true
+echo "sys.executable and sys.path:"
+python - <<'PY'
+import sys, pkgutil
+print("executable:", sys.executable)
+print("sys.path:")
+for p in sys.path:
+    print("  ", p)
+loader = pkgutil.find_loader("romm")
+print("pkgutil.find_loader('romm') ->", loader)
+try:
+    import romm
+    print("romm module location:", romm.__file__)
+except Exception as e:
+    print("import romm failed:", repr(e))
+PY
 
-export HOST=0.0.0.0
-export PORT=8998
+echo "--- Files in /app and /usr/local ---"
+ls -la /app || true
+ls -la /usr/local || true
 
-python -m romm
+echo "--- Final exec ---"
+exec python -m romm
