@@ -49,45 +49,43 @@ export DB_NAME="$MARIADB_DB"
 [ -n "$SS_USER" ]     && export SCREENSCRAPER_USER="$SS_USER"
 [ -n "$SS_PASS" ]     && export SCREENSCRAPER_PASSWORD="$SS_PASS"
 
+# ── DEBUG: leggi come RomM costruisce i path ──────────────────────────────────
+log "=== DEBUG CODICE ==="
+log "base_handler.py:"
+cat /backend/handler/filesystem/base_handler.py 2>/dev/null | head -60 || log "non trovato"
+log "roms_handler.py (sezione path):"
+grep -n "base_path\|library\|file_path\|X-Archive\|ROMM_BASE" /backend/handler/filesystem/roms_handler.py 2>/dev/null | head -30 || log "non trovato"
+log "nginx conf completa (location blocks):"
+grep -A 10 "location" /etc/nginx/nginx.conf 2>/dev/null | head -60 || log "non trovato"
+log "=== FINE DEBUG ==="
+
 # ── Percorsi ──────────────────────────────────────────────────────────────────
-export ROMM_BASE_PATH=/share
+# Usa /romm come base — è la cartella nativa di RomM
+# e monta la libreria ROM direttamente in /romm/library
+export ROMM_BASE_PATH=/romm
 
-mkdir -p /share/romm/resources
-mkdir -p /share/romm/assets
-mkdir -p /share/romm/config
+mkdir -p /romm/resources
+mkdir -p /romm/assets
+mkdir -p /romm/config
 
-if [ ! -f "/share/romm/config/config.yml" ]; then
-    touch /share/romm/config/config.yml
+if [ ! -f "/romm/config/config.yml" ]; then
+    touch /romm/config/config.yml
 fi
 
 if [ ! -d "$ROM_LIBRARY" ]; then
     mkdir -p "$ROM_LIBRARY"
 fi
 
+# Svuota /romm/library e rimpiazza con bind mount o copia symlink
+rm -rf /romm/library
+ln -sfn "$ROM_LIBRARY" /romm/library
+
+# Fix permessi
 chmod -R 755 "$ROM_LIBRARY" 2>/dev/null || true
-chmod -R 755 /share/romm 2>/dev/null || true
+chmod -R 755 /romm 2>/dev/null || true
 
-# ── DEBUG: struttura interna RomM ─────────────────────────────────────────────
-log "=== DEBUG STRUTTURA ==="
-log "Contenuto /romm:"
-ls -la /romm/ 2>/dev/null || log "/romm non esiste"
-
-log "Contenuto /src (codice RomM):"
-ls /src/ 2>/dev/null || log "/src non esiste"
-
-log "Config nginx:"
-cat /etc/nginx/nginx.conf 2>/dev/null | grep -A5 -i "location\|alias\|root\|zip\|decode" | head -40 || log "nginx.conf non trovato"
-
-log "Variabili d'ambiente attive:"
-env | grep -E "ROMM|DB_|IGDB" | grep -v PASSWD
-
-log "Ricerca rom_handler o file_handler:"
-find / -name "*.py" 2>/dev/null | xargs grep -l "X-Archive-Files\|file_path\|base_path" 2>/dev/null | head -5
-
-log "=== FINE DEBUG ==="
-
-log "ROMM_BASE_PATH: /share"
-log "Libreria ROM:   $ROM_LIBRARY"
+log "ROMM_BASE_PATH: /romm"
+log "Libreria ROM:   $ROM_LIBRARY -> /romm/library"
 log "Database:       MariaDB @ $MARIADB_HOST/$MARIADB_DB"
 log "Avvio RomM sulla porta 8080..."
 
