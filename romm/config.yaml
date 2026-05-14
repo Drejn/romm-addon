@@ -20,6 +20,7 @@ options:
   mariadb_user: ""
   mariadb_password: ""
   mariadb_database: romm
+  rom_library_path: /share/romm/library
   igdb_client_id: ""
   igdb_client_secret: ""
   screenscraper_user: ""
