@@ -43,7 +43,7 @@ export DB_PORT="$MARIADB_PORT"
 export DB_USER="$MARIADB_USER"
 export DB_PASSWD="$MARIADB_PASS"
 export DB_NAME="$MARIADB_DB"
-export NO_PROXY="homeassistant.local"
+export NO_PROXY="http://homeassistant.local:8998"
 
 # ── Metadati ──────────────────────────────────────────────────────────────────
 [ -n "$IGDB_ID" ]     && export IGDB_CLIENT_ID="$IGDB_ID"
