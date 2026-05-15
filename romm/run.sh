@@ -61,8 +61,6 @@ mkdir -p /share/romm/resources
 mkdir -p /share/romm/assets
 mkdir -p /share/romm/config
 mkdir -p /share/romm/library
-chmod 755 /share/romm/library
-find /share/romm/library -type d -exec chmod 755 {} +
 
 # Crea il config.yml se non esiste
 if [ ! -f "/share/romm/config/config.yml" ]; then
@@ -113,24 +111,6 @@ if [ -f /etc/nginx/nginx.conf ]; then
 fi
 
 sed "s|__INTERNAL_SECRET__|${INTERNAL_SECRET}|g" /nginx.conf.template > /etc/nginx/nginx.conf
-
-
-fix_file() {
-  local file="$1"
-  local dir
-  dir=$(dirname "$file")
-
-  chmod 755 "$dir" 2>/dev/null
-  chmod 644 "$file" 2>/dev/null
-}
-
-inotifywait -m -r \
-  -e close_write -e moved_to \
-  --format "%w%f" \
-  /share/romm/library | while read file
-do
-  fix_file "$file"
-done &
 
 # Ensure uvicorn binds to localhost:8081 (only accessible inside container)
 #uvicorn app.main:app --host 127.0.0.1 --port 8081 &
