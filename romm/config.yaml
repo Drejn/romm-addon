@@ -26,6 +26,7 @@ options:
   screenscraper_user: ""
   screenscraper_password: ""
   internal_secret: "secret"
+  network_mode: host
 schema:
   mariadb_host: str
   mariadb_port: int
@@ -38,3 +39,4 @@ schema:
   screenscraper_user: str
   screenscraper_password: str
   internal_secret: str
+  network_mode: str
