@@ -1,9 +1,19 @@
 FROM rommapp/romm:latest
-RUN apk add --no-cache curl jq openssl nginx
-RUN mkdir -p /var/lib/romm && ln -sfn /share/romm/library /var/lib/romm/library
-COPY nginx.conf.template /nginx.conf.template
+
+# Installa dipendenze HA
+RUN apk add --no-cache curl jq openssl
+
+# Patcha nginx per servire i file da /share/romm/library
+# invece di /romm/library (path persistente su HAOS)
+RUN sed -i 's|alias "/romm/library/";|alias "/share/romm/library/";|g' \
+    /etc/nginx/conf.d/default.conf
+
+# Verifica che la patch sia stata applicata
+RUN grep -n "alias" /etc/nginx/conf.d/default.conf
+
+# Copia lo script di avvio
 COPY run.sh /run.sh
-COPY app /app
 RUN chmod +x /run.sh
+
 EXPOSE 8080
 CMD ["/run.sh"]
