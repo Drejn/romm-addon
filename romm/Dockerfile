@@ -1,4 +1,4 @@
-FROM rommapp/romm:4.7.0
+FROM rommapp/romm:latest
 
 RUN apk add curl jq openssl
 COPY run.sh /run.sh
