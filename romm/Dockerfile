@@ -1,7 +1,7 @@
 FROM rommapp/romm:latest
 
 # Installa dipendenze HA
-RUN apk add --no-cache curl jq openssl
+RUN apk add --no-cache curl jq openssl nginx
 
 # Mostra il contenuto attuale di default.conf per debug
 RUN cat /etc/nginx/conf.d/default.conf
